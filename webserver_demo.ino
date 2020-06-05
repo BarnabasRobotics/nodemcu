@@ -1,48 +1,72 @@
+/*
+ * Sketch: ESP8266_LED_Control_02
+ * Control an LED from a web browser
+ * Intended to be run on an ESP8266
+ * 
+ * connect to the ESP8266 AP then
+ * use web broswer to go to 192.168.4.1
+ * 
+ */
+ 
+ 
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <ESP8266WebServer.h>
-/* Set these to your desired credentials. */
-const char *ssid = "*****"; //Enter your WIFI ssid
-const char *password = "*****"; //Enter your WIFI password
-ESP8266WebServer server(80);
-void handleRoot() {
- server.send(200, "text/html", "<form action=\"/LED_BUILTIN_on\" method=\"get\" id=\"form1\"></form><button type=\"submit\" form=\"form1\" value=\"On\">On</button><form action=\"/LED_BUILTIN_off\" method=\"get\" id=\"form2\"></form><button type=\"submit\" form=\"form2\" value=\"Off\">Off</button>");
-}
-void handleSave() {
- if (server.arg("pass") != "") {
-   Serial.println(server.arg("pass"));
- }
-}
-void setup() {
- pinMode(LED_BUILTIN, OUTPUT);
- delay(3000);
- Serial.begin(115200);
- Serial.println();
- Serial.print("Configuring access point...");
- WiFi.begin(ssid, password);
- while (WiFi.status() != WL_CONNECTED) {
-   delay(500);
-   Serial.print(".");
- }
- Serial.println("");
- Serial.println("WiFi connected");
- Serial.println("IP address: ");
- Serial.println(WiFi.localIP());
- server.on ( "/", handleRoot );
- server.on ("/save", handleSave);
- server.begin();
- Serial.println ( "HTTP server started" );
- server.on("/LED_BUILTIN_on", []() {
-   digitalWrite(LED_BUILTIN, 1);
-   Serial.println("on");
-   handleRoot();
- });
- server.on("/LED_BUILTIN_off", []() {
-   digitalWrite(LED_BUILTIN, 0);
-   Serial.println("off");
-   handleRoot();
- });
-}
-void loop() {
- server.handleClient();
-} 
+const char WiFiPassword[] = "12345678";
+const char AP_NameChar[] = "LEDControl" ;
+ 
+WiFiServer server(80);
+ 
+String header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+String html_1 = "<!DOCTYPE html><html><head><title>LED Control</title></head><body><div id='main'><h2>LED Control</h2>";
+String html_2 = "<form id='F1' action='LEDON'><input class='button' type='submit' value='LED ON' ></form><br>";
+String html_3 = "<form id='F2' action='LEDOFF'><input class='button' type='submit' value='LED OFF' ></form><br>";
+String html_4 = "</div></body></html>";
+ 
+String request = "";
+int LED_Pin = LED_BUILTIN;
+ 
+void setup() 
+{
+    pinMode(LED_Pin, OUTPUT); 
+
+    Serial.begin(115200);
+    delay(10);
+    Serial.println('\n');
+ 
+    boolean conn = WiFi.softAP(AP_NameChar, WiFiPassword);
+    server.begin();
+
+    Serial.print("Access Point \"");
+    Serial.print(AP_NameChar);
+    Serial.println("\" started");
+
+    Serial.print("IP address:\t");
+    Serial.println(WiFi.softAPIP());         // Send the IP address of the ESP8266 to the computer
+ 
+} // void setup()
+ 
+ 
+void loop() 
+{
+ 
+    // Check if a client has connected
+    WiFiClient client = server.available();
+    if (!client)  {  return;  }
+ 
+    // Read the first line of the request
+    request = client.readStringUntil('\r');
+ 
+    if       ( request.indexOf("LEDON") > 0 )  { digitalWrite(LED_Pin, HIGH);  }
+    else if  ( request.indexOf("LEDOFF") > 0 ) { digitalWrite(LED_Pin, LOW);   }
+ 
+    client.flush();
+ 
+    client.print( header );
+    client.print( html_1 );
+    client.print( html_2 );
+    client.print( html_3 );
+    client.print( html_4);
+ 
+    delay(5);
+  // The client will actually be disconnected when the function returns and 'client' object is detroyed
+ 
+} // void loop()
