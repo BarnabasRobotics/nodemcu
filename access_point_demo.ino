@@ -1,20 +1,61 @@
-#include <ESP8266WiFi.h>        // Include the Wi-Fi library
+/*
+ * Sketch: ESP8266_LED_Control_02
+ * Control an LED from a web browser
+ * Intended to be run on an ESP8266
+ * 
+ * connect to the ESP8266 AP then
+ * use web broswer to go to 192.168.4.1
+ * 
+ */
 
-const char *ssid = "ESP8266 Access Point"; // The name of the Wi-Fi network that will be created
-const char *password = "thereisnospoon";   // The password required to connect to it, leave blank for an open network
 
-void setup() {
-  Serial.begin(115200);
-  delay(10);
-  Serial.println('\n');
+#include <ESP8266WiFi.h>
+const char WiFiPassword[] = "12345678";
+const char AP_NameChar[] = "LEDControl" ;
 
-  WiFi.softAP(ssid, password);             // Start the access point
-  Serial.print("Access Point \"");
-  Serial.print(ssid);
-  Serial.println("\" started");
+WiFiServer server(80);
 
-  Serial.print("IP address:\t");
-  Serial.println(WiFi.softAPIP());         // Send the IP address of the ESP8266 to the computer
+String header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+String html_1 = "<!DOCTYPE html><html><head><title>LED Control</title></head><body><div id='main'><h2>LED Control</h2>";
+String html_2 = "<form id='F1' action='LEDON'><input class='button' type='submit' value='LED ON' ></form><br>";
+String html_3 = "<form id='F2' action='LEDOFF'><input class='button' type='submit' value='LED OFF' ></form><br>";
+String html_4 = "</div></body></html>";
+
+String request = "";
+int LED_Pin = D1;
+
+void setup() 
+{
+    pinMode(LED_Pin, OUTPUT); 
+    
+    boolean conn = WiFi.softAP(AP_NameChar, WiFiPassword);
+    server.begin();
+   
+} // void setup()
+
+
+void loop() 
+{
+
+    // Check if a client has connected
+    WiFiClient client = server.available();
+    if (!client)  {  return;  }
+    
+    // Read the first line of the request
+    request = client.readStringUntil('\r');
+    
+    if       ( request.indexOf("LEDON") > 0 )  { digitalWrite(LED_Pin, HIGH);  }
+    else if  ( request.indexOf("LEDOFF") > 0 ) { digitalWrite(LED_Pin, LOW);   }
+
+    client.flush();
+    
+    client.print( header );
+    client.print( html_1 );
+    client.print( html_2 );
+    client.print( html_3 );
+    client.print( html_4);
+    
+    delay(5);
+  // The client will actually be disconnected when the function returns and 'client' object is detroyed
+  
 }
-
-void loop() { }
